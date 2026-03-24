@@ -1,4 +1,4 @@
-# 🔍 AI Complaint Analyzer
+# AI Complaint Analyzer
 
 A modern **multimodal AI-powered** complaint analysis tool that processes customer **voice complaints** along with **damaged** and **correct product images**.
 
