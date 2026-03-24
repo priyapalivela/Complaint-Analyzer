@@ -19,6 +19,12 @@ if "complaints" not in st.session_state:
     st.session_state.complaints = []
 
 # ====================== AUTHENTICATION ======================
+if "user_email" not in st.session_state:
+    st.session_state.user_email = None
+if "user_name" not in st.session_state:
+    st.session_state.user_name = None
+
+
 def login_page():
     st.title("🔐 Complaint Analyzer Login")
     st.markdown("### AI-Powered Voice & Image Complaint Analysis")
@@ -32,7 +38,8 @@ def login_page():
             try:
                 conn.auth.sign_in_with_password({"email": email, "password": password})
                 st.session_state.user_email = email
-                st.session_state.user_name = email.split("@")[0].title()
+                # Extract nice name from email (e.g., bhanupriya from bhanupriya@gmail.com)
+                st.session_state.user_name = email.split("@")[0].replace(".", " ").title()
                 st.success(f"Welcome {st.session_state.user_name}!")
                 st.rerun()
             except Exception as e:
@@ -53,10 +60,12 @@ if st.session_state.user_email is None:
     login_page()
     st.stop()
 
-# ====================== DISPLAY NAME ======================
-user_display_name = st.session_state.user_name or st.session_state.user_email.split("@")[0].title()
 
-# ====================== MAIN TITLE ======================
+# ====================== DISPLAY NAME & MAIN TITLE ======================
+user_display_name = st.session_state.get("user_name") or \
+                    (st.session_state.user_email.split("@")[0].replace(".", " ").title() 
+                     if st.session_state.user_email else "User")
+
 st.title(f"🔍 AI Complaint Analyzer — {user_display_name}")
 
 # ====================== SIDEBAR ======================
