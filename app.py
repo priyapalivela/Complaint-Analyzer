@@ -172,10 +172,11 @@ tab1, tab2 = st.tabs(["📊 Batch Analysis", "📜 History & Dashboard"])
 with tab1:
     st.subheader("Batch Mode — Add Multiple Complaints")
 
+    # Input form for adding a new complaint
     with st.expander("➕ Add New Complaint Set", expanded=True):
         col1, col2 = st.columns(2)
         with col1:
-            audio = st.file_uploader("Audio Complaint", type=["mp3", "wav", "m4a", "ogg"], key="audio_new")
+            audio = st.file_uploader("Audio Complaint", type=["mp3","wav","m4a","ogg"], key="audio_new")
         with col2:
             order_notes = st.text_area("Order Notes", key="notes_new", height=80)
 
@@ -188,15 +189,26 @@ with tab1:
         if st.button("Add to Batch"):
             if audio and damaged and correct and order_notes.strip():
                 st.session_state.complaints.append({
-                    "audio": audio, "damaged": damaged, "correct": correct, "order_notes": order_notes
+                    "audio": audio,
+                    "damaged": damaged,
+                    "correct": correct,
+                    "order_notes": order_notes
                 })
                 st.success(f"Added to batch! Total: {len(st.session_state.complaints)}")
                 st.rerun()
             else:
                 st.error("All four fields are required.")
 
+    # Show all complaints in separate expanders
     if st.session_state.complaints:
         st.write(f"**Current Batch: {len(st.session_state.complaints)} complaints**")
+
+        for i, comp in enumerate(st.session_state.complaints, start=1):
+            with st.expander(f"Complaint Set {i}", expanded=False):
+                st.write(f"📝 Order Notes: {comp['order_notes']}")
+                st.audio(comp["audio"])
+                st.image(comp["damaged"], caption="Damaged Product")
+                st.image(comp["correct"], caption="Reference Product")
 
         if st.button("🚀 Process All Complaints", type="primary"):
             success_count = 0
