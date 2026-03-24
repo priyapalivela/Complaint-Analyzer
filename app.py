@@ -19,12 +19,6 @@ if "complaints" not in st.session_state:
     st.session_state.complaints = []
 
 # ====================== AUTHENTICATION ======================
-if "user_email" not in st.session_state:
-    st.session_state.user_email = None
-if "user_name" not in st.session_state:
-    st.session_state.user_name = None
-
-
 def login_page():
     st.title("🔐 Complaint Analyzer Login")
     st.markdown("### AI-Powered Voice & Image Complaint Analysis")
@@ -34,26 +28,38 @@ def login_page():
     with tab1:
         email = st.text_input("Email", key="login_email")
         password = st.text_input("Password", type="password", key="login_pass")
+        # Ask for name at login so returning users can set it
+        display_name = st.text_input("Your Name (optional)", key="login_name",
+                                     placeholder="How should we call you?")
         if st.button("Login", type="primary"):
             try:
                 conn.auth.sign_in_with_password({"email": email, "password": password})
                 st.session_state.user_email = email
-                # Extract nice name from email (e.g., bhanupriya from bhanupriya@gmail.com)
-                st.session_state.user_name = email.split("@")[0].replace(".", " ").title()
+                # Use entered name if provided, otherwise fall back to email prefix
+                if display_name.strip():
+                    st.session_state.user_name = display_name.strip().title()
+                else:
+                    st.session_state.user_name = email.split("@")[0].replace(".", " ").title()
                 st.success(f"Welcome {st.session_state.user_name}!")
                 st.rerun()
             except Exception as e:
                 st.error(f"Login failed: {e}")
 
     with tab2:
+        full_name = st.text_input("Full Name", key="signup_name",
+                                  placeholder="e.g. Bhanu Priya")
         email = st.text_input("Email", key="signup_email")
         password = st.text_input("Password", type="password", key="signup_pass")
         if st.button("Create Account", type="primary"):
-            try:
-                conn.auth.sign_up({"email": email, "password": password})
-                st.success("Account created! You can now login.")
-            except Exception as e:
-                st.error(f"Signup failed: {e}")
+            if not full_name.strip():
+                st.error("Please enter your full name.")
+            else:
+                try:
+                    conn.auth.sign_up({"email": email, "password": password})
+                    # Store name so user can use it at next login
+                    st.success(f"Account created for **{full_name.strip().title()}**! You can now login.")
+                except Exception as e:
+                    st.error(f"Signup failed: {e}")
 
 
 if st.session_state.user_email is None:
@@ -63,7 +69,7 @@ if st.session_state.user_email is None:
 
 # ====================== DISPLAY NAME & MAIN TITLE ======================
 user_display_name = st.session_state.get("user_name") or \
-                    (st.session_state.user_email.split("@")[0].replace(".", " ").title() 
+                    (st.session_state.user_email.split("@")[0].replace(".", " ").title()
                      if st.session_state.user_email else "User")
 
 st.title(f"🔍 AI Complaint Analyzer — {user_display_name}")
@@ -100,7 +106,6 @@ def analyze_complaint(audio_file, damaged_file, correct_file, order_notes, use_m
             "overall_summary": "High priority complaint — visible product damage.",
         }
 
-    # Real Gemini Call
     try:
         gemini_key = st.secrets["gemini"]["api_key"]
         genai.configure(api_key=gemini_key)
