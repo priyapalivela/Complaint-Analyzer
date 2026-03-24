@@ -181,16 +181,38 @@ with tab1:
             "order_notes": ""
         })
 
-    # Render all complaint sets
+    # Render all complaint sets in 2-column layout
     if st.session_state.complaints:
         st.write(f"**Current Batch: {len(st.session_state.complaints)} complaints**")
 
+        # Loop through each complaint set
         for i, comp in enumerate(st.session_state.complaints, start=1):
             with st.expander(f"Complaint Set {i}", expanded=True):
-                comp["audio"] = st.file_uploader(f"Audio Complaint {i}", type=["mp3","wav","m4a","ogg"], key=f"audio_{i}")
-                comp["order_notes"] = st.text_area(f"Order Notes {i}", key=f"notes_{i}", height=80)
-                comp["damaged"] = st.file_uploader(f"Damaged Product Image {i}", type=["jpg","jpeg","png","webp"], key=f"damaged_{i}")
-                comp["correct"] = st.file_uploader(f"Correct / Reference Image {i}", type=["jpg","jpeg","png","webp"], key=f"correct_{i}")
+                # First row: audio + notes
+                col1, col2 = st.columns(2)
+                with col1:
+                    comp["audio"] = st.file_uploader(f"Audio Complaint {i}", 
+                                                     type=["mp3","wav","m4a","ogg"], 
+                                                     key=f"audio_{i}")
+                with col2:
+                    comp["order_notes"] = st.text_area(f"Order Notes {i}", 
+                                                       key=f"notes_{i}", height=80)
+
+                # Second row: damaged + reference images
+                col3, col4 = st.columns(2)
+                with col3:
+                    comp["damaged"] = st.file_uploader(f"Damaged Product Image {i}", 
+                                                       type=["jpg","jpeg","png","webp"], 
+                                                       key=f"damaged_{i}")
+                with col4:
+                    comp["correct"] = st.file_uploader(f"Correct / Reference Image {i}", 
+                                                       type=["jpg","jpeg","png","webp"], 
+                                                       key=f"correct_{i}")
+
+                # Delete button for this set
+                if st.button(f"❌ Delete Complaint Set {i}"):
+                    st.session_state.complaints.pop(i-1)
+                    st.rerun()
 
         # Process all complaints at once
         if st.button("🚀 Process All Complaints", type="primary"):
@@ -218,7 +240,6 @@ with tab1:
             st.success(f"✅ Processed {success_count} complaints!")
             st.session_state.complaints = []
             st.rerun()
-
 
 with tab2:
     st.subheader("History & Dashboard")
