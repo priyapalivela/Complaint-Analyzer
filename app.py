@@ -20,6 +20,15 @@ st.markdown("""
     }
 
     /* Metric cards */
+    [data-testid="stFileUploader"] {
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
+    }
+
+    [data-testid="stFileUploader"] label {
+        font-weight: 600 !important;
+        font-size: 14px !important;
+        color: #cbd5e1 !important;
+    }
     div[data-testid="metric-container"] {
         background: linear-gradient(135deg, #1e1e2e 0%, #2a2a3e 100%);
         border: 1px solid rgba(99, 102, 241, 0.3);
@@ -376,8 +385,11 @@ def render_complaint_cards(df):
                     <span class="badge badge-angry">{emotion}</span>
                 </div>
             </div>
-            <div style="margin-top:12px; font-size:0.85rem; color:#94a3b8; line-height:1.6;">
-                <b style="color:#c4b5fd;">📝 Summary:</b> {str(row.get("summary", "—"))[:200]}
+            <div style="margin-top:12px; font-size:0.9rem; color:#94a3b8; line-height:1.6; font-family: 'Plus Jakarta Sans', sans-serif;">
+                <b style="color:#c4b5fd; font-weight:700;">📝 Summary:</b> 
+                <span style="font-weight:500;">
+                    {str(row.get("summary", "—"))[:200]}
+                </span>
             </div>
             <div style="margin-top:8px; font-size:0.85rem; color:#94a3b8; line-height:1.6;">
                 <b style="color:#6ee7b7;">✅ Resolution:</b> {resolution[:200]}
