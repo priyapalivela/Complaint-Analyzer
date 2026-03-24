@@ -28,14 +28,12 @@ def login_page():
     with tab1:
         email = st.text_input("Email", key="login_email")
         password = st.text_input("Password", type="password", key="login_pass")
-        # Ask for name at login so returning users can set it
         display_name = st.text_input("Your Name (optional)", key="login_name",
                                      placeholder="How should we call you?")
         if st.button("Login", type="primary"):
             try:
                 conn.auth.sign_in_with_password({"email": email, "password": password})
                 st.session_state.user_email = email
-                # Use entered name if provided, otherwise fall back to email prefix
                 if display_name.strip():
                     st.session_state.user_name = display_name.strip().title()
                 else:
@@ -56,7 +54,6 @@ def login_page():
             else:
                 try:
                     conn.auth.sign_up({"email": email, "password": password})
-                    # Store name so user can use it at next login
                     st.success(f"Account created for **{full_name.strip().title()}**! You can now login.")
                 except Exception as e:
                     st.error(f"Signup failed: {e}")
@@ -65,7 +62,6 @@ def login_page():
 if st.session_state.user_email is None:
     login_page()
     st.stop()
-
 
 # ====================== DISPLAY NAME & MAIN TITLE ======================
 user_display_name = st.session_state.get("user_name") or \
@@ -146,33 +142,12 @@ Return ONLY valid JSON:
         st.error(f"Gemini error: {e}")
         return {"error": str(e)}
 
-
-# ====================== SAVE TO SUPABASE ======================
-def save_complaint(data: dict):
-    try:
-        conn.table("complaints").insert({
-            "user_email": st.session_state.user_email,
-            "order_notes": data.get("order_notes", ""),
-            "damage_score": data.get("damage_score"),
-            "damage_description": data.get("damage_description", ""),
-            "emotions": data.get("emotions", ""),
-            "summary": data.get("summary", ""),
-            "resolution": data.get("resolution", ""),
-            "overall_summary": data.get("overall_summary", ""),
-            "transcription": data.get("transcription", ""),
-        }).execute()
-        st.success("✅ Saved to database!")
-    except Exception as e:
-        st.error(f"Save failed: {e}")
-
-
 # ====================== TABS ======================
 tab1, tab2 = st.tabs(["📊 Batch Analysis", "📜 History & Dashboard"])
 
 with tab1:
     st.subheader("Batch Mode — Add Multiple Complaints")
 
-    # Button to add a new complaint set dynamically
     if st.button("➕ Add New Complaint Set"):
         st.session_state.complaints.append({
             "audio": None,
@@ -181,14 +156,11 @@ with tab1:
             "order_notes": ""
         })
 
-    # Render all complaint sets in 2-column layout
     if st.session_state.complaints:
         st.write(f"**Current Batch: {len(st.session_state.complaints)} complaints**")
 
-        # Loop through each complaint set
         for i, comp in enumerate(st.session_state.complaints, start=1):
             with st.expander(f"Complaint Set {i}", expanded=True):
-                # First row: audio + notes
                 col1, col2 = st.columns(2)
                 with col1:
                     comp["audio"] = st.file_uploader(f"Audio Complaint {i}", 
@@ -198,7 +170,6 @@ with tab1:
                     comp["order_notes"] = st.text_area(f"Order Notes {i}", 
                                                        key=f"notes_{i}", height=80)
 
-                # Second row: damaged + reference images
                 col3, col4 = st.columns(2)
                 with col3:
                     comp["damaged"] = st.file_uploader(f"Damaged Product Image {i}", 
@@ -209,60 +180,101 @@ with tab1:
                                                        type=["jpg","jpeg","png","webp"], 
                                                        key=f"correct_{i}")
 
-                # Delete button for this set
                 if st.button(f"❌ Delete Complaint Set {i}"):
                     st.session_state.complaints.pop(i-1)
                     st.rerun()
 
-        # Process all complaints at once
+        # 🚀 Process All Complaints with bulk insert + fallback
         if st.button("🚀 Process All Complaints", type="primary"):
-            success_count = 0
-            with st.status("Processing complaints...", expanded=True):
-                for comp in st.session_state.complaints:
-                    if comp["audio"] and comp["damaged"] and comp["correct"] and comp["order_notes"].strip():
-                        result = analyze_complaint(
-                            comp["audio"], comp["damaged"], comp["correct"], comp["order_notes"], use_mock=use_mock
-                        )
-                        if "error" not in result:
-                            save_data = {
-                                "order_notes": comp["order_notes"],
-                                "damage_score": result.get("damage_analysis", {}).get("score"),
-                                "damage_description": result.get("damage_analysis", {}).get("description", ""),
-                                "emotions": result.get("audio_analysis", {}).get("emotions", ""),
-                                "summary": result.get("audio_analysis", {}).get("summary", ""),
-                                "resolution": result.get("audio_analysis", {}).get("potential_resolution", ""),
-                                "overall_summary": result.get("overall_summary", ""),
-                                "transcription": result.get("audio_analysis", {}).get("transcription", ""),
-                            }
-                            save_complaint(save_data)
-                            success_count += 1
+            save_list = []
+            for comp in st.session_state.complaints:
+                if comp["audio"] and comp["damaged"] and comp["correct"] and comp["order_notes"].strip():
+                    result = analyze_complaint(
+                        comp["audio"], comp["damaged"], comp["correct"], comp["order_notes"], use_mock=use_mock
+                    )
+                    if "error" not in result:
+                        save_list.append({
+                            "user_email": st.session_state.user_email,
+                            "order_notes": comp["order_notes"],
+                            "damage_score": result.get("damage_analysis", {}).get("score"),
+                            "damage_description": result.get("damage_analysis", {}).get("description", ""),
+                            "emotions": result.get("audio_analysis", {}).get("emotions", ""),
+                            "summary": result.get("audio_analysis", {}).get("summary", ""),
+                            "resolution": result.get("audio_analysis", {}).get("potential_resolution", ""),
+                            "overall_summary": result.get("overall_summary", ""),
+                            "transcription": result.get("audio_analysis", {}).get("transcription", ""),
+                        })
 
-            st.success(f"✅ Processed {success_count} complaints!")
-            st.session_state.complaints = []
-            st.rerun()
+            success_count = 0
+            if save_list:
+                try:
+                    conn.table("complaints").insert(save_list).execute()
+                    success_count = len(save_list)
+                    st.success(f"✅ Bulk saved {success_count} complaints!")
+                except Exception as e:
+                    st.warning(f"Bulk insert failed ({e}),
 
 with tab2:
     st.subheader("History & Dashboard")
     try:
-        response = conn.table("complaints").select("*").eq("user_email", st.session_state.user_email).order("created_at", desc=True).execute()
+        response = conn.table("complaints").select("*").eq(
+            "user_email", st.session_state.user_email
+        ).order("created_at", desc=True).execute()
         df = pd.DataFrame(response.data or [])
 
         if not df.empty:
+            # Metrics
             col1, col2, col3 = st.columns(3)
             col1.metric("Total Complaints", len(df))
-            col2.metric("Avg Damage Score", f"{df['damage_score'].mean():.1f}/10" if not df['damage_score'].isnull().all() else "N/A")
+            col2.metric(
+                "Avg Damage Score",
+                f"{df['damage_score'].mean():.1f}/10"
+                if not df["damage_score"].isnull().all()
+                else "N/A",
+            )
             col3.metric("User", user_display_name)
 
-            st.plotly_chart(px.bar(df, x="created_at", y="damage_score", title="Damage Score Trend"), use_container_width=True)
+            # Bar chart of damage scores over time
+            st.plotly_chart(
+                px.bar(df, x="created_at", y="damage_score", title="Damage Score Trend"),
+                use_container_width=True,
+            )
 
+            # Pie chart of emotions
+            if "emotions" in df.columns and not df["emotions"].isnull().all():
+                emotion_counts = df["emotions"].value_counts()
+                st.plotly_chart(
+                    px.pie(
+                        values=emotion_counts.values,
+                        names=emotion_counts.index,
+                        title="Complaints by Emotion",
+                    ),
+                    use_container_width=True,
+                )
+
+            # Pie chart of resolutions
+            if "resolution" in df.columns and not df["resolution"].isnull().all():
+                resolution_counts = df["resolution"].value_counts()
+                st.plotly_chart(
+                    px.pie(
+                        values=resolution_counts.values,
+                        names=resolution_counts.index,
+                        title="Complaints by Resolution",
+                    ),
+                    use_container_width=True,
+                )
+
+            # CSV download
             csv = df.to_csv(index=False).encode()
             st.download_button("⬇️ Download CSV", csv, "my_complaints.csv", "text/csv")
 
+            # Search + table
             search = st.text_input("🔎 Search complaints")
             if search:
                 df = df[df.apply(lambda row: search.lower() in str(row).lower(), axis=1)]
 
             st.dataframe(df, use_container_width=True, hide_index=True)
+
         else:
             st.info("No complaints recorded yet.")
     except Exception as e:
