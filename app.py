@@ -172,68 +172,53 @@ tab1, tab2 = st.tabs(["📊 Batch Analysis", "📜 History & Dashboard"])
 with tab1:
     st.subheader("Batch Mode — Add Multiple Complaints")
 
-    # Input form for adding a new complaint
-    with st.expander("➕ Add New Complaint Set", expanded=True):
-        col1, col2 = st.columns(2)
-        with col1:
-            audio = st.file_uploader("Audio Complaint", type=["mp3","wav","m4a","ogg"], key="audio_new")
-        with col2:
-            order_notes = st.text_area("Order Notes", key="notes_new", height=80)
+    # Button to add a new complaint set dynamically
+    if st.button("➕ Add New Complaint Set"):
+        st.session_state.complaints.append({
+            "audio": None,
+            "damaged": None,
+            "correct": None,
+            "order_notes": ""
+        })
 
-        col3, col4 = st.columns(2)
-        with col3:
-            damaged = st.file_uploader("Damaged Product Image", type=["jpg","jpeg","png","webp"], key="damaged_new")
-        with col4:
-            correct = st.file_uploader("Correct / Reference Image", type=["jpg","jpeg","png","webp"], key="correct_new")
-
-        if st.button("Add to Batch"):
-            if audio and damaged and correct and order_notes.strip():
-                st.session_state.complaints.append({
-                    "audio": audio,
-                    "damaged": damaged,
-                    "correct": correct,
-                    "order_notes": order_notes
-                })
-                st.success(f"Added to batch! Total: {len(st.session_state.complaints)}")
-                st.rerun()
-            else:
-                st.error("All four fields are required.")
-
-    # Show all complaints in separate expanders
+    # Render all complaint sets
     if st.session_state.complaints:
         st.write(f"**Current Batch: {len(st.session_state.complaints)} complaints**")
 
         for i, comp in enumerate(st.session_state.complaints, start=1):
-            with st.expander(f"Complaint Set {i}", expanded=False):
-                st.write(f"📝 Order Notes: {comp['order_notes']}")
-                st.audio(comp["audio"])
-                st.image(comp["damaged"], caption="Damaged Product")
-                st.image(comp["correct"], caption="Reference Product")
+            with st.expander(f"Complaint Set {i}", expanded=True):
+                comp["audio"] = st.file_uploader(f"Audio Complaint {i}", type=["mp3","wav","m4a","ogg"], key=f"audio_{i}")
+                comp["order_notes"] = st.text_area(f"Order Notes {i}", key=f"notes_{i}", height=80)
+                comp["damaged"] = st.file_uploader(f"Damaged Product Image {i}", type=["jpg","jpeg","png","webp"], key=f"damaged_{i}")
+                comp["correct"] = st.file_uploader(f"Correct / Reference Image {i}", type=["jpg","jpeg","png","webp"], key=f"correct_{i}")
 
+        # Process all complaints at once
         if st.button("🚀 Process All Complaints", type="primary"):
             success_count = 0
             with st.status("Processing complaints...", expanded=True):
                 for comp in st.session_state.complaints:
-                    result = analyze_complaint(
-                        comp["audio"], comp["damaged"], comp["correct"], comp["order_notes"], use_mock=use_mock
-                    )
-                    if "error" not in result:
-                        save_data = {
-                            "order_notes": comp["order_notes"],
-                            "damage_score": result.get("damage_analysis", {}).get("score"),
-                            "damage_description": result.get("damage_analysis", {}).get("description", ""),
-                            "emotions": result.get("audio_analysis", {}).get("emotions", ""),
-                            "summary": result.get("audio_analysis", {}).get("summary", ""),
-                            "resolution": result.get("audio_analysis", {}).get("potential_resolution", ""),
-                            "overall_summary": result.get("overall_summary", ""),
-                            "transcription": result.get("audio_analysis", {}).get("transcription", ""),
-                        }
-                        save_complaint(save_data)
-                        success_count += 1
+                    if comp["audio"] and comp["damaged"] and comp["correct"] and comp["order_notes"].strip():
+                        result = analyze_complaint(
+                            comp["audio"], comp["damaged"], comp["correct"], comp["order_notes"], use_mock=use_mock
+                        )
+                        if "error" not in result:
+                            save_data = {
+                                "order_notes": comp["order_notes"],
+                                "damage_score": result.get("damage_analysis", {}).get("score"),
+                                "damage_description": result.get("damage_analysis", {}).get("description", ""),
+                                "emotions": result.get("audio_analysis", {}).get("emotions", ""),
+                                "summary": result.get("audio_analysis", {}).get("summary", ""),
+                                "resolution": result.get("audio_analysis", {}).get("potential_resolution", ""),
+                                "overall_summary": result.get("overall_summary", ""),
+                                "transcription": result.get("audio_analysis", {}).get("transcription", ""),
+                            }
+                            save_complaint(save_data)
+                            success_count += 1
 
             st.success(f"✅ Processed {success_count} complaints!")
             st.session_state.complaints = []
             st.rerun()
+
 
 with tab2:
     st.subheader("History & Dashboard")
