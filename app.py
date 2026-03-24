@@ -118,6 +118,7 @@ with st.sidebar:
         conn.auth.sign_out()
         st.session_state.user_email = None
         st.session_state.user_name = None
+        st.session_state.complaints = []
         st.rerun()
 
 # ====================== GEMINI ANALYSIS ======================
@@ -130,9 +131,9 @@ def analyze_complaint(audio_file, damaged_file, correct_file, order_notes, use_m
             },
             "audio_analysis": {
                 "transcription": "Hello, I received the phone but the screen is cracked and the camera is not working properly. Very disappointed!",
-                "emotions": "Angry, Frustrated",
+                "emotions": "Angry",
                 "summary": "Customer received a damaged smartphone with cracked screen and malfunctioning camera.",
-                "potential_resolution": "Offer replacement or full refund.",
+                "potential_resolution": "Replacement or refund",
             },
             "overall_summary": "High priority complaint — visible product damage.",
         }
@@ -141,33 +142,44 @@ def analyze_complaint(audio_file, damaged_file, correct_file, order_notes, use_m
         gemini_key = st.secrets["gemini"]["api_key"]
         genai.configure(api_key=gemini_key)
         model = genai.GenerativeModel("gemini-2.5-flash")
-
         contents = []
 
         if damaged_file:
-            contents.append({
-                "mime_type": damaged_file.type,
-                "data": damaged_file.getvalue()
-            })
-            contents.append("Damaged product image")
+            contents.append(
+                genai.protos.Part(
+                    inline_data=genai.protos.Blob(
+                        mime_type=damaged_file.type,
+                        data=damaged_file.getvalue()
+                    )
+                )
+            )
+            contents.append(genai.protos.Part(text="Damaged product image"))
 
         if correct_file:
-            contents.append({
-                "mime_type": correct_file.type,
-                "data": correct_file.getvalue()
-            })
-            contents.append("Correct / reference product image")
+            contents.append(
+                genai.protos.Part(
+                    inline_data=genai.protos.Blob(
+                        mime_type=correct_file.type,
+                        data=correct_file.getvalue()
+                    )
+                )
+            )
+            contents.append(genai.protos.Part(text="Correct / reference product image"))
 
         if audio_file:
-            contents.append({
-                "mime_type": audio_file.type,
-                "data": audio_file.getvalue()
-            })
-            contents.append("Transcribe this audio complaint")
+            contents.append(
+                genai.protos.Part(
+                    inline_data=genai.protos.Blob(
+                        mime_type=audio_file.type,
+                        data=audio_file.getvalue()
+                    )
+                )
+            )
+            contents.append(genai.protos.Part(text="Transcribe this audio complaint"))
 
         prompt = f"""Order notes: {order_notes}
 Analyse the audio and both images.
-Return ONLY valid JSON:
+Return ONLY valid JSON with no markdown fences:
 
 {{
   "damage_analysis": {{"score": <0-10>, "description": "..."}},
@@ -175,10 +187,17 @@ Return ONLY valid JSON:
   "overall_summary": "..."
 }}"""
 
-        contents.append(prompt)
+        contents.append(genai.protos.Part(text=prompt))
 
         response = model.generate_content(contents)
         text = response.text.strip()
+
+        # Strip markdown fences if model wraps response despite instructions
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+            text = text.strip()
 
         start = text.find("{")
         end = text.rfind("}") + 1
@@ -209,6 +228,7 @@ with tab1:
 
     if st.session_state.complaints:
         st.write(f"**Current Batch: {len(st.session_state.complaints)} complaints**")
+        to_delete = None
 
         for i, comp in enumerate(st.session_state.complaints, start=1):
             with st.expander(f"Complaint Set {i}", expanded=True):
@@ -244,15 +264,18 @@ with tab1:
                         key=f"correct_{i}"
                     )
 
-                if st.button(f"❌ Delete Complaint Set {i}"):
-                    st.session_state.complaints.pop(i - 1)
-                    st.rerun()
+                if st.button(f"❌ Delete Complaint Set {i}", key=f"del_{i}"):
+                    to_delete = i - 1
 
-    # ✅ FIXED INDENTATION HERE
+        if to_delete is not None:
+            st.session_state.complaints.pop(to_delete)
+            st.rerun()
+
     if st.button("🚀 Process All Complaints", type="primary"):
         save_list = []
+        skipped = 0
 
-        for comp in st.session_state.complaints:
+        for i, comp in enumerate(st.session_state.complaints, start=1):
             if (
                 comp["audio"]
                 and comp["damaged"]
@@ -279,8 +302,12 @@ with tab1:
                         "overall_summary": result.get("overall_summary", ""),
                         "transcription": result.get("audio_analysis", {}).get("transcription", ""),
                     })
+            else:
+                skipped += 1
+                st.warning(f"⚠️ Complaint Set {i} skipped — please attach all files and add order notes.")
 
         success_count = 0
+        failed_rows = []
 
         if save_list:
             try:
@@ -298,10 +325,14 @@ with tab1:
                         st.info("Complaint saved individually.")
                     except Exception as e2:
                         st.error(f"Row insert failed: {e2}")
+                        failed_rows.append(row)
 
-        st.success(f"✅ Processed {success_count} complaints!")
-        st.session_state.complaints = []
-        st.rerun()
+        if success_count > 0 and not failed_rows:
+            st.success(f"✅ Processed {success_count} complaints!")
+            st.session_state.complaints = []
+            st.rerun()
+        elif failed_rows:
+            st.error(f"{len(failed_rows)} complaints could not be saved and remain in the batch for retry.")
 
 # ====================== TAB 2 ======================
 with tab2:
@@ -328,19 +359,37 @@ with tab2:
 
             col3.metric("User", user_display_name)
 
+        
+            if "created_at" in df.columns:
+                df["created_at"] = pd.to_datetime(df["created_at"], errors="coerce")
+
             st.plotly_chart(
-                px.bar(df, x="created_at", y="damage_score", title="Damage Score Trend"),
+                px.bar(
+                    df,
+                    x="created_at",
+                    y="damage_score",
+                    title="Damage Score Trend",
+                    labels={"created_at": "Date", "damage_score": "Damage Score"}
+                ),
                 use_container_width=True,
             )
 
             if "emotions" in df.columns and not df["emotions"].isnull().all():
-                emotion_counts = df["emotions"].value_counts()
+                emotion_series = (
+                    df["emotions"]
+                    .dropna()
+                    .str.split(",")
+                    .str[0]
+                    .str.strip()
+                    .str.title()
+                )
+                emotion_counts = emotion_series.value_counts()
 
                 st.plotly_chart(
                     px.pie(
                         values=emotion_counts.values,
                         names=emotion_counts.index,
-                        title="Complaints by Emotion",
+                        title="Complaints by Primary Emotion",
                     ),
                     use_container_width=True,
                 )
@@ -369,7 +418,10 @@ with tab2:
             search = st.text_input("🔎 Search complaints")
 
             if search:
-                df = df[df.apply(lambda row: search.lower() in str(row).lower(), axis=1)]
+                mask = df.astype(str).apply(
+                    lambda col: col.str.contains(search, case=False, na=False)
+                ).any(axis=1)
+                df = df[mask]
 
             st.dataframe(df, use_container_width=True, hide_index=True)
 
