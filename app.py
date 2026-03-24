@@ -226,7 +226,7 @@ with tab1:
 with tab2:
     st.subheader("History & Dashboard")
     try:
-        response = conn.table("complaints").select("*").eq("user_email", st.session_state.user_email).order("timestamp", desc=True).execute()
+        response = conn.table("complaints").select("*").eq("user_email", st.session_state.user_email).order("created_at", desc=True).execute()
         df = pd.DataFrame(response.data or [])
 
         if not df.empty:
@@ -235,7 +235,7 @@ with tab2:
             col2.metric("Avg Damage Score", f"{df['damage_score'].mean():.1f}/10" if not df['damage_score'].isnull().all() else "N/A")
             col3.metric("User", user_display_name)
 
-            st.plotly_chart(px.bar(df, x="timestamp", y="damage_score", title="Damage Score Trend"), use_container_width=True)
+            st.plotly_chart(px.bar(df, x="created_at", y="damage_score", title="Damage Score Trend"), use_container_width=True)
 
             csv = df.to_csv(index=False).encode()
             st.download_button("⬇️ Download CSV", csv, "my_complaints.csv", "text/csv")
