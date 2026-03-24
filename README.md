@@ -24,55 +24,84 @@ Built with **Streamlit**, **Google Gemini 2.5 Flash**, and **Supabase**.
 
 ## 🛠 Tech Stack
 
-| Technology              | Purpose                          |
-|------------------------|----------------------------------|
-| Streamlit              | Web frontend                     |
-| Google Gemini 2.5 Flash| Multimodal AI (Audio + Images)   |
-| Supabase               | Database + Authentication        |
-| Pandas + Plotly        | Data analysis & Visualization    |
+| Technology               | Purpose                         |
+|--------------------------|---------------------------------|
+| Streamlit                | Web frontend                    |
+| Google Gemini 2.5 Flash  | Multimodal AI (Audio + Images)  |
+| Supabase                 | Database + Authentication       |
+| Pandas + Plotly          | Data analysis & Visualization   |
 
 ---
 
 ## 🚀 How to Run Locally
 
 1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/complaint-analyzer.git
-   cd complaint-analyzer
 
-Install dependencies:Bashpip install -r requirements.txt
-Create .streamlit/secrets.toml file with your credentials (see example below).
-Run the app:Bashstreamlit run app.py
+```bash
+git clone https://github.com/yourusername/complaint-analyzer.git
+cd complaint-analyzer
+```
 
+2. Install dependencies:
 
-🔑 Secrets Configuration
-Create a folder .streamlit and add secrets.toml inside it:
-toml[connections.supabase]
+```bash
+pip install -r requirements.txt
+```
+
+3. Create `.streamlit/secrets.toml` file with your credentials (see example below).
+
+4. Run the app:
+
+```bash
+streamlit run app.py
+```
+
+---
+
+## 🔑 Secrets Configuration
+
+Create a folder `.streamlit` and add `secrets.toml` inside it:
+
+```toml
+[connections.supabase]
 SUPABASE_URL = "https://your-project-ref.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 
 [gemini]
 api_key = "AIzaSyYourGeminiAPIKeyHere"
-Important: Never commit secrets.toml to GitHub.
+```
 
-📁 Project Structure
-textcomplaint-analyzer/
+> **Important:** Never commit `secrets.toml` to GitHub.
+
+---
+
+## 📁 Project Structure
+
+```text
+complaint-analyzer/
 ├── app.py
 ├── requirements.txt
 ├── README.md
 ├── .gitignore
 └── .streamlit/
     └── secrets.toml          # ← Not committed to GitHub
+```
 
-Deployment
-This app is designed to be deployed on Streamlit Community Cloud with automatic updates on every git push.
+---
 
-⚠️ Gemini Quota Note
+## ☁️ Deployment
 
-The app includes a Test Mode toggle in the sidebar.
-Keep Test Mode ON during development to avoid consuming your Gemini API quota.
-Turn it OFF only when you want real AI analysis.
+This app is designed to be deployed on **Streamlit Community Cloud** with automatic updates on every git push.
 
+---
 
-Made With ❤️
-Built for fast and intelligent customer complaint resolution.
+## ⚠️ Gemini Quota Note
+
+The app includes a **Test Mode** toggle in the sidebar.
+
+- Keep **Test Mode ON** during development to avoid consuming your Gemini API quota.
+- Turn it **OFF** only when you want real AI analysis.
+
+---
+
+*Made with ❤️ — Built for fast and intelligent customer complaint resolution.*
