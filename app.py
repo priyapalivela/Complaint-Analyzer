@@ -13,6 +13,8 @@ conn = st.connection("supabase", type=SupabaseConnection)
 # ====================== AUTHENTICATION ======================
 if "user_email" not in st.session_state:
     st.session_state.user_email = None
+if "user_name" not in st.session_state:
+    st.session_state.user_name = None
 
 
 def login_page():
@@ -26,6 +28,8 @@ def login_page():
             try:
                 conn.auth.sign_in_with_password({"email": email, "password": password})
                 st.session_state.user_email = email
+                # Optionally pull display name from user metadata if available
+                # st.session_state.user_name = resp.user.user_metadata.get("full_name")
                 st.success(f"Welcome {email}!")
                 st.rerun()
             except Exception as e:
@@ -46,12 +50,19 @@ if st.session_state.user_email is None:
     login_page()
     st.stop()
 
+# ====================== DISPLAY NAME ======================
+# FIX #1: Define user_display_name BEFORE the sidebar so it's always available.
+user_display_name = (
+    st.session_state.user_name
+    or st.session_state.user_email.split("@")[0].title()
+)
+
 # ====================== SIDEBAR ======================
 with st.sidebar:
-    st.success(f"Logged in: {st.session_state.user_email}")
+    st.success(f"Logged in as: **{user_display_name}**")
     st.divider()
 
-    # ── Test mode toggle (set ONCE here, passed into analyze_complaint) ──
+    # Test mode toggle (set ONCE here, passed into analyze_complaint)
     use_mock = st.toggle("🟢 Test mode (mock data)", value=True)
     if use_mock:
         st.caption("No Gemini quota will be used.")
@@ -61,7 +72,9 @@ with st.sidebar:
     st.divider()
     if st.button("Logout"):
         conn.auth.sign_out()
+        # FIX #4: Clear both email AND name on logout to avoid stale state.
         st.session_state.user_email = None
+        st.session_state.user_name = None
         st.rerun()
 
 
@@ -92,7 +105,7 @@ def analyze_complaint(audio_file, damaged_file, correct_file, order_notes, use_m
             "overall_summary": "High priority complaint — visible product damage.",
         }
 
-    # ── Real Gemini call ──
+    # Real Gemini call
     try:
         gemini_key = st.secrets["gemini"]["api_key"]
         genai.configure(api_key=gemini_key)
@@ -161,7 +174,7 @@ def save_complaint(data: dict):
 
 
 # ====================== MAIN UI ======================
-st.title(f"🔍 Multimodal Complaint Analyzer — {st.session_state.user_email}")
+st.title(f"🔍 Multimodal Complaint Analyzer — {user_display_name}")
 
 tab1, tab2 = st.tabs(["📊 Batch Analysis", "📜 History & Dashboard"])
 
@@ -174,7 +187,7 @@ with tab1:
     if "complaints" not in st.session_state:
         st.session_state.complaints = []
 
-    # ── Add new complaint form ──
+    # Add new complaint form
     with st.expander("➕ Add New Complaint Set", expanded=True):
         col1, col2 = st.columns(2)
         with col1:
@@ -213,13 +226,19 @@ with tab1:
             else:
                 st.error("All four fields are required before adding to the batch.")
 
-    # ── Batch summary & process button ──
+    # Batch summary & process button
     if st.session_state.complaints:
         st.write(f"**Current Batch: {len(st.session_state.complaints)} complaint(s)**")
 
-        # Show a compact preview table
         preview = [
-            {"#": i + 1, "Order notes": c["order_notes"][:60] + "…" if len(c["order_notes"]) > 60 else c["order_notes"]}
+            {
+                "#": i + 1,
+                "Order notes": (
+                    c["order_notes"][:60] + "…"
+                    if len(c["order_notes"]) > 60
+                    else c["order_notes"]
+                ),
+            }
             for i, c in enumerate(st.session_state.complaints)
         ]
         st.dataframe(preview, use_container_width=True, hide_index=True)
@@ -243,13 +262,13 @@ with tab1:
                 for i, comp in enumerate(st.session_state.complaints):
                     st.write(f"Analysing complaint {i + 1} / {len(st.session_state.complaints)}…")
 
-                    # ── use_mock comes from the sidebar toggle ──
+                    # use_mock comes from the sidebar toggle — single source of truth
                     result = analyze_complaint(
                         comp["audio"],
                         comp["damaged"],
                         comp["correct"],
                         comp["order_notes"],
-                        use_mock=use_mock,  # ← single source of truth
+                        use_mock=use_mock,
                     )
 
                     if "error" in result:
@@ -299,7 +318,7 @@ with tab2:
         df = pd.DataFrame(response.data or [])
 
         if not df.empty:
-            # ── KPI metrics ──
+            # KPI metrics
             col1, col2, col3 = st.columns(3)
             col1.metric("Total Complaints", len(df))
             col2.metric(
@@ -312,7 +331,7 @@ with tab2:
 
             st.divider()
 
-            # ── Charts ──
+            # Charts
             chart_col1, chart_col2 = st.columns(2)
             with chart_col1:
                 st.plotly_chart(
@@ -327,7 +346,6 @@ with tab2:
                 )
             with chart_col2:
                 if "emotions" in df.columns and df["emotions"].notna().any():
-                    # Explode comma-separated emotion strings for a cleaner pie
                     emotions_series = (
                         df["emotions"]
                         .dropna()
@@ -350,7 +368,7 @@ with tab2:
 
             st.divider()
 
-            # ── CSV download ──
+            # CSV download
             csv = df.to_csv(index=False).encode()
             st.download_button(
                 "⬇️ Download CSV",
@@ -359,7 +377,7 @@ with tab2:
                 "text/csv",
             )
 
-            # ── Search & table ──
+            # Search & table
             search = st.text_input("🔎 Search complaints", placeholder="Type to filter…")
             if search:
                 mask = df.apply(lambda row: search.lower() in str(row).lower(), axis=1)
