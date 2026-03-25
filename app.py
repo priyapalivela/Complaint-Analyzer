@@ -157,7 +157,7 @@ user_display_name = (
         if st.session_state.user_email else "User")
 )
 
-st.title(f"🔍 AI Complaint Analyzer — {user_display_name}")
+st.title(f"🔍 AI Complaint Analyzer – {user_display_name}")
 
 # ====================== SIDEBAR ======================
 with st.sidebar:
@@ -372,7 +372,7 @@ tab1, tab2 = st.tabs(["📊 Batch Analysis", "📜 History & Dashboard"])
 
 # ====================== TAB 1 ======================
 with tab1:
-    st.subheader("Batch Mode — Add Multiple Complaints")
+    st.subheader("Batch Mode – Add Multiple Complaints")
 
     if st.button("➕ Add New Complaint Set"):
         st.session_state.complaints.append({
