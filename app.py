@@ -100,6 +100,8 @@ if "user_name" not in st.session_state:
     st.session_state.user_name = None
 if "complaints" not in st.session_state:
     st.session_state.complaints = []
+if "gemini_key_to_use" not in st.session_state:
+    st.session_state.gemini_key_to_use = None  # None = use secret key (owner), str = user's own key
 
 # ====================== AUTHENTICATION ======================
 def login_page():
@@ -164,25 +166,54 @@ with st.sidebar:
     st.success(f"Logged in as: **{user_display_name}**")
     st.divider()
 
-    use_mock = st.toggle("🟢 Test Mode (Mock Data)", value=False)
+    # --- Test Mode (independent toggle, works for everyone including owner) ---
+    use_mock = st.toggle("🟢 Test Mode (Mock Data)", value=True)
 
-    if use_mock:
-        st.caption("✅ No Gemini quota will be used — uses sample data")
-        st.warning("⚠️ Mock data is generic (phone complaint). Turn off for real AI analysis.")
+    st.divider()
+
+    # --- Owner Mode (only shown in real mode, owner skips typing API key) ---
+    is_owner = st.checkbox(
+        "👑 Owner Mode",
+        value=False,
+        help="App owner only — auto-uses the stored Gemini key. Others: leave unchecked and paste your key below."
+    )
+
+    if not use_mock:
+        # Real Mode is ON
+        if is_owner:
+            # Owner: secret key is used automatically, no input needed
+            st.success("✅ **Owner Real Mode** — Using stored Gemini key")
+            st.session_state.gemini_key_to_use = None  # sentinel: use st.secrets
+        else:
+            # Other users: must paste their own key
+            st.warning("⚠️ Real AI Mode — paste your own free Gemini API key below")
+            user_key = st.text_input(
+                "Your Gemini API Key",
+                type="password",
+                placeholder="AIzaSy...",
+                help="Get a free key → https://aistudio.google.com/app/apikey"
+            )
+            if user_key:
+                st.success("✅ Using YOUR Gemini key")
+                st.session_state.gemini_key_to_use = user_key
+            else:
+                st.error("Please paste a Gemini API key to use Real Mode")
+                st.session_state.gemini_key_to_use = None
     else:
-        st.caption("⚡ Real Gemini AI — analyzes your actual uploads")
+        # Test Mode is ON: no key needed for anyone
+        st.caption("✅ Test Mode active — no API key needed")
+        st.caption("Turn off Test Mode for real AI analysis.")
 
     st.divider()
 
     if st.button("Logout"):
         conn.auth.sign_out()
-        st.session_state.user_email = None
-        st.session_state.user_name = None
-        st.session_state.complaints = []
+        st.session_state.clear()
         st.rerun()
 
 # ====================== GEMINI ANALYSIS ======================
 def analyze_complaint(audio_file, damaged_file, correct_file, order_notes, use_mock=False):
+    # --- TEST MODE: returns mock data for everyone ---
     if use_mock:
         return {
             "damage_analysis": {
@@ -198,8 +229,25 @@ def analyze_complaint(audio_file, damaged_file, correct_file, order_notes, use_m
             "overall_summary": "⚠️ MOCK DATA — Enable real mode and re-upload for accurate analysis.",
         }
 
+    # --- REAL MODE: pick the right API key ---
+    key_in_session = st.session_state.get("gemini_key_to_use")
+
+    if key_in_session is None:
+        # Owner mode or no user key stored → use the secret key
+        try:
+            gemini_key = st.secrets["gemini"]["api_key"]
+        except Exception:
+            st.error("⚠️ Owner secret key not found in Streamlit Secrets. Check your secrets config.")
+            return {"error": "Owner secret key missing"}
+    else:
+        # Regular user pasted their own key
+        gemini_key = key_in_session
+
+    if not gemini_key:
+        st.error("No Gemini API key available. Enable Owner Mode or paste your own key.")
+        return {"error": "No Gemini key"}
+
     try:
-        gemini_key = st.secrets["gemini"]["api_key"]
         genai.configure(api_key=gemini_key)
         model = genai.GenerativeModel("gemini-2.5-flash")
         contents = []
@@ -325,7 +373,6 @@ def styled_pie_chart(values, names, title):
     )
     return fig
 
-# ====================== CHANGE 4: Updated render_complaint_cards with batch + set info ======================
 def render_complaint_cards(df):
     st.markdown('<div class="section-header">📋 Complaint Details</div>', unsafe_allow_html=True)
     for _, row in df.iterrows():
@@ -334,8 +381,7 @@ def render_complaint_cards(df):
         emotion = str(row.get("emotions", "Unknown")).split(",")[0].strip().title()
         resolution = str(row.get("resolution", "—"))
         created = str(row.get("created_at", ""))[:16].replace("T", " ")
-        # NEW: batch and set info
-        batch = str(row.get("batch_id", "—"))[:8] + "…"  # show first 8 chars of UUID
+        batch = str(row.get("batch_id", "—"))[:8] + "…"
         set_id = str(row.get("set_id", "—"))
 
         st.markdown(f"""
@@ -403,9 +449,8 @@ with tab1:
             st.session_state.complaints.pop(to_delete)
             st.rerun()
 
-    # ====================== CHANGE 1: batch_id + set_id added to save_list ======================
     if st.button("🚀 Process All Complaints", type="primary"):
-        batch_id = str(uuid.uuid4())  # unique ID for this entire run
+        batch_id = str(uuid.uuid4())
         save_list = []
         skipped = 0
 
@@ -417,8 +462,8 @@ with tab1:
                 )
                 if "error" not in result:
                     save_list.append({
-                        "batch_id": batch_id,           # CHANGE 1: same for all in this run
-                        "set_id": i,                    # CHANGE 1: Complaint Set number
+                        "batch_id": batch_id,
+                        "set_id": i,
                         "user_email": st.session_state.user_email,
                         "order_notes": comp["order_notes"],
                         "damage_score": result.get("damage_analysis", {}).get("score"),
@@ -463,7 +508,6 @@ with tab2:
     st.subheader("History & Dashboard")
 
     try:
-        # ====================== CHANGE 2: Dashboard query (unchanged, already correct) ======================
         response = conn.table("complaints").select("*").eq(
             "user_email", st.session_state.user_email
         ).order("created_at", desc=True).execute()
@@ -474,7 +518,6 @@ with tab2:
             if "created_at" in df.columns:
                 df["created_at"] = pd.to_datetime(df["created_at"], errors="coerce")
 
-            # ====================== CHANGE 3: Batch filter UI ======================
             if "batch_id" in df.columns:
                 batch_options = df["batch_id"].dropna().unique().tolist()
                 selected_batch = st.selectbox(
@@ -485,7 +528,6 @@ with tab2:
                 if selected_batch != "All":
                     df = df[df["batch_id"] == selected_batch]
 
-            # ---- KPI METRICS ----
             col1, col2, col3, col4 = st.columns(4)
 
             avg_score = df["damage_score"].mean() if not df["damage_score"].isnull().all() else 0
@@ -499,7 +541,6 @@ with tab2:
 
             st.divider()
 
-            # ---- ROW 1: Damage Score Trend + Emotion Donut ----
             chart_col1, chart_col2 = st.columns([3, 2])
 
             with chart_col1:
@@ -530,7 +571,6 @@ with tab2:
                     st.plotly_chart(fig_emo, use_container_width=True)
                     st.markdown('</div>', unsafe_allow_html=True)
 
-            # ---- ROW 2: Resolution Donut + Damage Distribution ----
             chart_col3, chart_col4 = st.columns([2, 3])
 
             with chart_col3:
@@ -569,12 +609,10 @@ with tab2:
 
             st.divider()
 
-            # ---- COMPLAINT CARDS ----
             render_complaint_cards(df)
 
             st.divider()
 
-            # ---- SEARCH + TABLE ----
             st.markdown('<div class="section-header">🔎 Search & Export</div>', unsafe_allow_html=True)
 
             search_col, dl_col = st.columns([3, 1])
