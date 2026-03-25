@@ -12,23 +12,13 @@ st.set_page_config(page_title="AI Complaint Analyzer", page_icon="🔍", layout=
 # ====================== CUSTOM CSS ======================
 st.markdown("""
 <style>
-    /* ==================== FIX FOR EXPANDER HOVER ==================== */
+    /* Quick fix for expander hover overlap */
     .streamlit-expanderHeader {
-        background-color: #1e1e2e !important;
-        color: #e2e8f0 !important;
-        font-weight: 600 !important;
-        font-size: 1.05rem !important;
-        border-radius: 8px !important;
+        padding: 12px 16px !important;
     }
-    
     .streamlit-expanderHeader:hover {
-        background-color: #25253a !important;     /* Nice visible hover */
-        color: #ffffff !important;
-    }
-
-    /* Make sure the arrow is also visible */
-    .streamlit-expanderHeader svg {
-        fill: #c4b5fd !important;
+        background-color: #2a2a3e !important;
+        color: white !important;
     }
     /* Import Google Fonts - but we'll use it selectively */
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
