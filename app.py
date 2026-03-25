@@ -106,7 +106,7 @@ if "gemini_key_to_use" not in st.session_state:
 # ====================== AUTHENTICATION ======================
 def login_page():
     st.title("🔐 Complaint Analyzer Login")
-    st.markdown("### AI-Powered Voice & Image Complaint Analysis")
+    st.markdown("### AI-Powered Multimodal Complaint Analysis")
 
     tab1, tab2 = st.tabs(["Login", "Sign Up"])
 
