@@ -6,13 +6,13 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from st_supabase_connection import SupabaseConnection
+import uuid
 
 st.set_page_config(page_title="AI Complaint Analyzer", page_icon="🔍", layout="wide")
 
 # ====================== CUSTOM CSS ======================
 st.markdown("""
 <style>
-    /* Remove Plus Jakarta Sans from drag-drop areas and summary cards */
     .stFileUploader label, 
     .stTextArea label,
     .stFileUploader div[data-testid="stFileUploaderDropzone"],
@@ -22,12 +22,10 @@ st.markdown("""
         font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
     }
 
-    /* Keep nice font only for main titles and headers */
     .stApp h1, .stApp h2, .stApp h3, .section-header {
         font-family: 'Plus Jakarta Sans', sans-serif !important;
     }
 
-    /* Metric cards */
     div[data-testid="metric-container"] {
         background: linear-gradient(135deg, #1e1e2e 0%, #2a2a3e 100%);
         border: 1px solid rgba(99, 102, 241, 0.3);
@@ -40,7 +38,6 @@ st.markdown("""
         box-shadow: 0 8px 32px rgba(99, 102, 241, 0.25);
     }
 
-    /* Section headers */
     .section-header {
         font-size: 1.5rem;
         font-weight: 700;
@@ -50,7 +47,6 @@ st.markdown("""
         border-bottom: 2px solid rgba(99,102,241,0.4);
     }
 
-    /* Complaint card - Normal font */
     .complaint-card {
         background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
         border: 1px solid rgba(99,102,241,0.2);
@@ -63,13 +59,11 @@ st.markdown("""
     .complaint-card.medium { border-left-color: #f59e0b; }
     .complaint-card.low { border-left-color: #22c55e; }
 
-    /* Make order notes and summary text normal weight */
     .complaint-card div[style*="font-size:1rem"] {
         font-weight: 400 !important;
         line-height: 1.5 !important;
     }
 
-    /* Badge */
     .badge {
         display: inline-block;
         padding: 3px 10px;
@@ -84,7 +78,6 @@ st.markdown("""
     .badge-refund { background: rgba(99,102,241,0.2); color: #a5b4fc; }
     .badge-score { background: rgba(245,158,0.2); color: #fcd34d; }
 
-    /* Chart container */
     .chart-container {
         background: linear-gradient(135deg, #1e1e2e 0%, #1a1a2e 100%);
         border: 1px solid rgba(99,102,241,0.2);
@@ -191,7 +184,6 @@ with st.sidebar:
 # ====================== GEMINI ANALYSIS ======================
 def analyze_complaint(audio_file, damaged_file, correct_file, order_notes, use_mock=False):
     if use_mock:
-        # CLEARLY LABELED mock data — generic placeholder only
         return {
             "damage_analysis": {
                 "score": 7,
@@ -276,17 +268,13 @@ COLOR_PALETTE = [
 ]
 
 def styled_bar_chart(df, x, y, title, color_col=None):
-    """Returns a beautifully styled bar chart."""
     color_seq = COLOR_PALETTE
     if color_col:
         fig = px.bar(df, x=x, y=y, color=color_col, title=title, color_discrete_sequence=color_seq)
     else:
         fig = px.bar(df, x=x, y=y, title=title, color_discrete_sequence=color_seq)
 
-    fig.update_traces(
-        marker_line_width=0,
-        selector=dict(type="bar")
-    )
+    fig.update_traces(marker_line_width=0, selector=dict(type="bar"))
     fig.update_layout(
         **CHART_THEME,
         title=dict(font=dict(size=16, weight=700), x=0.02),
@@ -295,7 +283,6 @@ def styled_bar_chart(df, x, y, title, color_col=None):
         showlegend=False,
         bargap=0.35,
     )
-    # Gradient-like coloring by value for damage scores
     if y == "damage_score":
         colors = []
         for val in df[y]:
@@ -309,7 +296,6 @@ def styled_bar_chart(df, x, y, title, color_col=None):
     return fig
 
 def styled_pie_chart(values, names, title):
-    """Returns a beautifully styled donut chart."""
     fig = go.Figure(go.Pie(
         values=values,
         labels=names,
@@ -339,6 +325,7 @@ def styled_pie_chart(values, names, title):
     )
     return fig
 
+# ====================== CHANGE 4: Updated render_complaint_cards with batch + set info ======================
 def render_complaint_cards(df):
     st.markdown('<div class="section-header">📋 Complaint Details</div>', unsafe_allow_html=True)
     for _, row in df.iterrows():
@@ -347,15 +334,18 @@ def render_complaint_cards(df):
         emotion = str(row.get("emotions", "Unknown")).split(",")[0].strip().title()
         resolution = str(row.get("resolution", "—"))
         created = str(row.get("created_at", ""))[:16].replace("T", " ")
+        # NEW: batch and set info
+        batch = str(row.get("batch_id", "—"))[:8] + "…"  # show first 8 chars of UUID
+        set_id = str(row.get("set_id", "—"))
 
         st.markdown(f"""
         <div class="complaint-card {severity}">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
                 <div>
                     <span style="font-size:0.75rem; color:rgba(255,255,255,0.45); font-weight:600; text-transform:uppercase; letter-spacing:0.06em;">
-                        🕐 {created}
+                        🕐 {created} &nbsp;|&nbsp; 📦 Batch: {batch} &nbsp;|&nbsp; 🔢 Set: {set_id}
                     </span>
-                    <div style="font-size:1.02rem; font-weight:400; color:#e2e8f0; margin-top:6px; line-height:1.45;">
+                    <div style="font-size:1rem; font-weight:400; font-family: system-ui, -apple-system, sans-serif; color:#e2e8f0; margin-top:6px; line-height:1.4;">
                         {str(row.get("order_notes", "—"))[:80]}
                     </div>
                 </div>
@@ -413,7 +403,9 @@ with tab1:
             st.session_state.complaints.pop(to_delete)
             st.rerun()
 
+    # ====================== CHANGE 1: batch_id + set_id added to save_list ======================
     if st.button("🚀 Process All Complaints", type="primary"):
+        batch_id = str(uuid.uuid4())  # unique ID for this entire run
         save_list = []
         skipped = 0
 
@@ -425,6 +417,8 @@ with tab1:
                 )
                 if "error" not in result:
                     save_list.append({
+                        "batch_id": batch_id,           # CHANGE 1: same for all in this run
+                        "set_id": i,                    # CHANGE 1: Complaint Set number
                         "user_email": st.session_state.user_email,
                         "order_notes": comp["order_notes"],
                         "damage_score": result.get("damage_analysis", {}).get("score"),
@@ -469,6 +463,7 @@ with tab2:
     st.subheader("History & Dashboard")
 
     try:
+        # ====================== CHANGE 2: Dashboard query (unchanged, already correct) ======================
         response = conn.table("complaints").select("*").eq(
             "user_email", st.session_state.user_email
         ).order("created_at", desc=True).execute()
@@ -478,6 +473,17 @@ with tab2:
         if not df.empty:
             if "created_at" in df.columns:
                 df["created_at"] = pd.to_datetime(df["created_at"], errors="coerce")
+
+            # ====================== CHANGE 3: Batch filter UI ======================
+            if "batch_id" in df.columns:
+                batch_options = df["batch_id"].dropna().unique().tolist()
+                selected_batch = st.selectbox(
+                    "📦 Filter by Batch ID",
+                    ["All"] + batch_options,
+                    format_func=lambda x: x if x == "All" else f"{x[:8]}… ({df[df['batch_id']==x].shape[0]} complaints)"
+                )
+                if selected_batch != "All":
+                    df = df[df["batch_id"] == selected_batch]
 
             # ---- KPI METRICS ----
             col1, col2, col3, col4 = st.columns(4)
@@ -530,7 +536,6 @@ with tab2:
             with chart_col3:
                 if "resolution" in df.columns and not df["resolution"].isnull().all():
                     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-                    # Shorten resolution labels for pie chart
                     res_series = df["resolution"].dropna().str[:40].str.strip()
                     res_counts = res_series.value_counts()
                     fig_res = styled_pie_chart(
@@ -543,7 +548,6 @@ with tab2:
 
             with chart_col4:
                 st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-                # Damage score distribution as histogram
                 fig_hist = go.Figure(go.Histogram(
                     x=df["damage_score"].dropna(),
                     nbinsx=10,
