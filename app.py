@@ -168,10 +168,13 @@ with st.sidebar:
 
     # --- Test Mode (independent toggle, works for everyone including owner) ---
     use_mock = st.toggle("🟢 Test Mode (Mock Data)", value=True)
+    if use_mock:
+        st.caption("✅ Test Mode active — no API key needed")
+        st.caption("Turn off Test Mode for real AI analysis.")
 
     st.divider()
 
-    # --- Owner Mode (only shown in real mode, owner skips typing API key) ---
+    # --- Owner Mode (only relevant when Test Mode is OFF) ---
     is_owner = st.checkbox(
         "👑 Owner Mode",
         value=False,
@@ -199,10 +202,6 @@ with st.sidebar:
             else:
                 st.error("Please paste a Gemini API key to use Real Mode")
                 st.session_state.gemini_key_to_use = None
-    else:
-        # Test Mode is ON: no key needed for anyone
-        st.caption("✅ Test Mode active — no API key needed")
-        st.caption("Turn off Test Mode for real AI analysis.")
 
     st.divider()
 
