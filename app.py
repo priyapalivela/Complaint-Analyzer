@@ -12,13 +12,49 @@ st.set_page_config(page_title="AI Complaint Analyzer", page_icon="🔍", layout=
 # ====================== CUSTOM CSS ======================
 st.markdown("""
 <style>
-    /* Import Google Fonts */
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    /* Import Google Fonts - but we'll use it selectively */
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 
-    html, body, [class*="css"] {
-        font-family: 'Plus Jakarta Sans', sans-serif;
+    /* ====================== MAIN FONT - NORMAL SANS-SERIF ====================== */
+    html, body, [class*="css"], .stApp, 
+    .stFileUploader label, .stTextArea label, 
+    .stTextInput label, button, .stButton button,
+    textarea, input, .stMarkdown, p, span, div {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 
+                     'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 
+                     sans-serif !important;
+        font-weight: 400 !important;           /* Normal weight */
     }
 
+    /* Keep Plus Jakarta Sans only for big headings and section titles */
+    h1, h2, h3, .section-header, 
+    .stTabs [data-baseweb="tab"], 
+    div[data-testid="stMetricValue"] {
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
+        font-weight: 600 !important;
+    }
+
+    .stFileUploader label, 
+    .stFileUploader div[data-testid="stMarkdownContainer"] p {
+        font-weight: 400 !important;
+        font-size: 0.95rem !important;
+        color: #cbd5e1 !important;
+    }
+
+    textarea {
+        font-family: system-ui, -apple-system, sans-serif !important;
+        font-weight: 400 !important;
+        font-size: 0.98rem !important;
+        line-height: 1.5 !important;
+    }
+
+    /* Buttons - normal font */
+    button, .stButton button {
+        font-weight: 500 !important;
+        font-size: 0.95rem !important;
+        letter-spacing: 0.02em;
+    }
+/
     /* Metric cards */
     div[data-testid="metric-container"] {
         background: linear-gradient(135deg, #1e1e2e 0%, #2a2a3e 100%);
@@ -41,7 +77,7 @@ st.markdown("""
     }
     div[data-testid="metric-container"] [data-testid="stMetricValue"] {
         font-size: 2.2rem !important;
-        font-weight: 800 !important;
+        font-weight: 700 !important;
         color: #a5b4fc !important;
     }
 
@@ -92,17 +128,15 @@ st.markdown("""
         margin-bottom: 20px;
     }
 
-    /* Divider */
+    /* Other small fixes */
     hr { border-color: rgba(99,102,241,0.2) !important; }
-
-    /* Scrollable complaint table */
     .stDataFrame { border-radius: 12px; overflow: hidden; }
 
-    /* Sidebar */
     section[data-testid="stSidebar"] {
         background: linear-gradient(180deg, #0f0f23 0%, #1a1a2e 100%);
         border-right: 1px solid rgba(99,102,241,0.2);
     }
+
 </style>
 """, unsafe_allow_html=True)
 
