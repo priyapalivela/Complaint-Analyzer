@@ -351,11 +351,12 @@ def styled_pie_chart(values, names, title):
 def render_complaint_cards(df):
     """Render individual complaint cards with full detail."""
     st.markdown('<div class="section-header">📋 Complaint Details</div>', unsafe_allow_html=True)
-
+    
     for _, row in df.iterrows():
         score = row.get("damage_score", 0) or 0
         severity = "high" if score >= 8 else ("medium" if score >= 5 else "low")
         color = "#ef4444" if severity == "high" else ("#f59e0b" if severity == "medium" else "#22c55e")
+        
         emotion = str(row.get("emotions", "Unknown")).split(",")[0].strip().title()
         resolution = str(row.get("resolution", "—"))
         created = str(row.get("created_at", ""))[:16].replace("T", " ")
@@ -367,7 +368,12 @@ def render_complaint_cards(df):
                     <span style="font-size:0.75rem; color:rgba(255,255,255,0.45); font-weight:600; text-transform:uppercase; letter-spacing:0.06em;">
                         🕐 {created}
                     </span>
-                    <div style="font-size:1rem; font-weight:700; color:#e2e8f0; margin-top:4px;">
+                    <div style="font-size:1rem; 
+                                font-weight:400;          
+                                font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;  
+                                color:#e2e8f0; 
+                                margin-top:6px; 
+                                line-height:1.4;">
                         {str(row.get("order_notes", "—"))[:80]}
                     </div>
                 </div>
@@ -376,13 +382,14 @@ def render_complaint_cards(df):
                     <span class="badge badge-angry">{emotion}</span>
                 </div>
             </div>
-            <div style="margin-top:12px; font-size:0.85rem; color:#94a3b8; line-height:1.6;"> 
-                <b style="color:#c4b5fd;">📝 Summary:</b> {str(row.get("summary", "—"))[:200]} 
+            
+            <div style="margin-top:14px; font-size:0.875rem; color:#94a3b8; line-height:1.55;">
+                <b style="color:#c4b5fd;">📝 Summary:</b> {str(row.get("summary", "—"))[:200]}
             </div>
-            <div style="margin-top:8px; font-size:0.85rem; color:#94a3b8; line-height:1.6;">
+            <div style="margin-top:8px; font-size:0.875rem; color:#94a3b8; line-height:1.55;">
                 <b style="color:#6ee7b7;">✅ Resolution:</b> {resolution[:200]}
             </div>
-            <div style="margin-top:8px; font-size:0.85rem; color:#94a3b8; line-height:1.6;">
+            <div style="margin-top:8px; font-size:0.875rem; color:#94a3b8; line-height:1.55;">
                 <b style="color:#fcd34d;">🔊 Transcription:</b> {str(row.get("transcription", "—"))[:300]}
             </div>
         </div>
