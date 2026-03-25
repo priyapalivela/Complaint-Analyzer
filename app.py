@@ -106,7 +106,7 @@ if "gemini_key_to_use" not in st.session_state:
 # ====================== AUTHENTICATION ======================
 def login_page():
     st.title("🔐 Complaint Analyzer Login")
-    st.markdown("### AI-Powered Multimodal Complaint Analysis")
+    st.markdown("### AI-Powered Voice & Image Complaint Analysis")
 
     tab1, tab2 = st.tabs(["Login", "Sign Up"])
 
@@ -165,45 +165,40 @@ st.title(f"🔍 AI Complaint Analyzer – {user_display_name}")
 with st.sidebar:
     st.success(f"Logged in as: **{user_display_name}**")
     st.divider()
-    # --- Test Mode (independent toggle, works for everyone including owner) ---
+
+    # --- Test Mode: works for EVERYONE including owner ---
     use_mock = st.toggle("🟢 Test Mode (Mock Data)", value=True)
     if use_mock:
-        st.caption("✅ Test Mode active — no API key needed")
-        st.caption("Turn off Test Mode for real AI analysis.")
+        st.caption("No API key needed. Using sample data.")
 
     st.divider()
-    # --- Owner Mode (only relevant when Test Mode is OFF) ---
-    is_owner = st.checkbox(
-        "👑 Owner Mode",
-        value=False,
-        help="App owner only — auto-uses the stored Gemini key. Others: leave unchecked and paste your key below."
-    )
-    st.divider()
 
-    
+    # --- Real Mode section: only appears when Test Mode is OFF ---
+    is_owner = False  # default
     if not use_mock:
-        # Real Mode is ON
+        st.markdown("**⚡ Real AI Mode**")
+        is_owner = st.checkbox(
+            "👑 I'm the Owner (use stored key)",
+            value=False,
+            help="Only for the app owner — uses the secret Gemini key automatically."
+        )
         if is_owner:
-            # Owner: secret key is used automatically, no input needed
-            st.success("✅ **Owner Real Mode** — Using stored Gemini key")
-            st.session_state.gemini_key_to_use = None  # sentinel: use st.secrets
+            st.success("✅ Using stored Gemini key")
+            st.session_state.gemini_key_to_use = None
         else:
-            # Other users: must paste their own key
-            st.warning("⚠️ Real AI Mode — paste your own free Gemini API key below")
             user_key = st.text_input(
                 "Your Gemini API Key",
                 type="password",
                 placeholder="AIzaSy...",
-                help="Get a free key → https://aistudio.google.com/app/apikey"
+                help="Get free key → https://aistudio.google.com/app/apikey"
             )
             if user_key:
-                st.success("✅ Using YOUR Gemini key")
+                st.success("✅ Using your Gemini key")
                 st.session_state.gemini_key_to_use = user_key
             else:
-                st.error("Please paste a Gemini API key to use Real Mode")
+                st.warning("Paste your Gemini API key above to use Real Mode")
                 st.session_state.gemini_key_to_use = None
-
-    st.divider()
+        st.divider()
 
     if st.button("Logout"):
         conn.auth.sign_out()
