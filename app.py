@@ -12,57 +12,21 @@ st.set_page_config(page_title="AI Complaint Analyzer", page_icon="🔍", layout=
 # ====================== CUSTOM CSS ======================
 st.markdown("""
 <style>
-    /* Quick fix for expander hover overlap */
-    .streamlit-expanderHeader {
-        padding: 12px 16px !important;
-    }
-    .streamlit-expanderHeader:hover {
-        background-color: #2a2a3e !important;
-        color: white !important;
-    }
-    /* Import Google Fonts - but we'll use it selectively */
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
-
-    /* ====================== MAIN FONT - NORMAL SANS-SERIF ====================== */
-    html, body, [class*="css"], .stApp, 
-    .stFileUploader label, .stTextArea label, 
-    .stTextInput label, button, .stButton button,
-    textarea, input, .stMarkdown, p, span, div {
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, 
-                     'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 
-                     sans-serif !important;
-        font-weight: 400 !important;           /* Normal weight */
-    }
-
-    /* Keep Plus Jakarta Sans only for big headings and section titles */
-    h1, h2, h3, .section-header, 
-    .stTabs [data-baseweb="tab"], 
-    div[data-testid="stMetricValue"] {
-        font-family: 'Plus Jakarta Sans', sans-serif !important;
-        font-weight: 600 !important;
-    }
-
+    /* Remove Plus Jakarta Sans from drag-drop areas and summary cards */
     .stFileUploader label, 
-    .stFileUploader div[data-testid="stMarkdownContainer"] p {
-        font-weight: 400 !important;
-        font-size: 0.95rem !important;
-        color: #cbd5e1 !important;
+    .stTextArea label,
+    .stFileUploader div[data-testid="stFileUploaderDropzone"],
+    .stFileUploader button,
+    .complaint-card,
+    .complaint-card * {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
     }
 
-    textarea {
-        font-family: system-ui, -apple-system, sans-serif !important;
-        font-weight: 400 !important;
-        font-size: 0.98rem !important;
-        line-height: 1.5 !important;
+    /* Keep nice font only for main titles and headers */
+    .stApp h1, .stApp h2, .stApp h3, .section-header {
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
     }
 
-    /* Buttons - normal font */
-    button, .stButton button {
-        font-weight: 500 !important;
-        font-size: 0.95rem !important;
-        letter-spacing: 0.02em;
-    }
-/
     /* Metric cards */
     div[data-testid="metric-container"] {
         background: linear-gradient(135deg, #1e1e2e 0%, #2a2a3e 100%);
@@ -70,23 +34,10 @@ st.markdown("""
         border-radius: 16px;
         padding: 20px 24px;
         box-shadow: 0 4px 24px rgba(0,0,0,0.3);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
     div[data-testid="metric-container"]:hover {
         transform: translateY(-2px);
         box-shadow: 0 8px 32px rgba(99, 102, 241, 0.25);
-    }
-    div[data-testid="metric-container"] label {
-        font-size: 0.75rem !important;
-        font-weight: 600 !important;
-        text-transform: uppercase !important;
-        letter-spacing: 0.08em !important;
-        color: rgba(255,255,255,0.5) !important;
-    }
-    div[data-testid="metric-container"] [data-testid="stMetricValue"] {
-        font-size: 2.2rem !important;
-        font-weight: 700 !important;
-        color: #a5b4fc !important;
     }
 
     /* Section headers */
@@ -99,7 +50,7 @@ st.markdown("""
         border-bottom: 2px solid rgba(99,102,241,0.4);
     }
 
-    /* Complaint card */
+    /* Complaint card - Normal font */
     .complaint-card {
         background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
         border: 1px solid rgba(99,102,241,0.2);
@@ -111,6 +62,12 @@ st.markdown("""
     .complaint-card.high { border-left-color: #ef4444; }
     .complaint-card.medium { border-left-color: #f59e0b; }
     .complaint-card.low { border-left-color: #22c55e; }
+
+    /* Make order notes and summary text normal weight */
+    .complaint-card div[style*="font-size:1rem"] {
+        font-weight: 400 !important;
+        line-height: 1.5 !important;
+    }
 
     /* Badge */
     .badge {
@@ -125,7 +82,7 @@ st.markdown("""
     }
     .badge-angry { background: rgba(239,68,68,0.2); color: #fca5a5; }
     .badge-refund { background: rgba(99,102,241,0.2); color: #a5b4fc; }
-    .badge-score { background: rgba(245,158,11,0.2); color: #fcd34d; }
+    .badge-score { background: rgba(245,158,0.2); color: #fcd34d; }
 
     /* Chart container */
     .chart-container {
@@ -135,16 +92,8 @@ st.markdown("""
         padding: 8px;
         margin-bottom: 20px;
     }
-
-    /* Other small fixes */
     hr { border-color: rgba(99,102,241,0.2) !important; }
     .stDataFrame { border-radius: 12px; overflow: hidden; }
-
-    section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #0f0f23 0%, #1a1a2e 100%);
-        border-right: 1px solid rgba(99,102,241,0.2);
-    }
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -391,14 +340,10 @@ def styled_pie_chart(values, names, title):
     return fig
 
 def render_complaint_cards(df):
-    """Render individual complaint cards with full detail."""
     st.markdown('<div class="section-header">📋 Complaint Details</div>', unsafe_allow_html=True)
-    
     for _, row in df.iterrows():
         score = row.get("damage_score", 0) or 0
         severity = "high" if score >= 8 else ("medium" if score >= 5 else "low")
-        color = "#ef4444" if severity == "high" else ("#f59e0b" if severity == "medium" else "#22c55e")
-        
         emotion = str(row.get("emotions", "Unknown")).split(",")[0].strip().title()
         resolution = str(row.get("resolution", "—"))
         created = str(row.get("created_at", ""))[:16].replace("T", " ")
@@ -410,12 +355,7 @@ def render_complaint_cards(df):
                     <span style="font-size:0.75rem; color:rgba(255,255,255,0.45); font-weight:600; text-transform:uppercase; letter-spacing:0.06em;">
                         🕐 {created}
                     </span>
-                    <div style="font-size:1rem; 
-                                font-weight:400;          
-                                font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;  
-                                color:#e2e8f0; 
-                                margin-top:6px; 
-                                line-height:1.4;">
+                    <div style="font-size:1.02rem; font-weight:400; color:#e2e8f0; margin-top:6px; line-height:1.45;">
                         {str(row.get("order_notes", "—"))[:80]}
                     </div>
                 </div>
@@ -424,14 +364,13 @@ def render_complaint_cards(df):
                     <span class="badge badge-angry">{emotion}</span>
                 </div>
             </div>
-            
-            <div style="margin-top:14px; font-size:0.875rem; color:#94a3b8; line-height:1.55;">
+            <div style="margin-top:14px; font-size:0.9rem; color:#94a3b8; line-height:1.6;">
                 <b style="color:#c4b5fd;">📝 Summary:</b> {str(row.get("summary", "—"))[:200]}
             </div>
-            <div style="margin-top:8px; font-size:0.875rem; color:#94a3b8; line-height:1.55;">
+            <div style="margin-top:8px; font-size:0.9rem; color:#94a3b8; line-height:1.6;">
                 <b style="color:#6ee7b7;">✅ Resolution:</b> {resolution[:200]}
             </div>
-            <div style="margin-top:8px; font-size:0.875rem; color:#94a3b8; line-height:1.55;">
+            <div style="margin-top:8px; font-size:0.9rem; color:#94a3b8; line-height:1.6;">
                 <b style="color:#fcd34d;">🔊 Transcription:</b> {str(row.get("transcription", "—"))[:300]}
             </div>
         </div>
