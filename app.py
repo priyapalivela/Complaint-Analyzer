@@ -165,20 +165,19 @@ st.title(f"🔍 AI Complaint Analyzer – {user_display_name}")
 with st.sidebar:
     st.success(f"Logged in as: **{user_display_name}**")
     st.divider()
-    
-    # --- Owner Mode (only relevant when Test Mode is OFF) ---
-    is_owner = st.checkbox(
-        "👑 Owner Mode",
-        value=False,
-        help="App owner only — auto-uses the stored Gemini key. Others: leave unchecked and paste your key below."
-    )
-    st.divider()
     # --- Test Mode (independent toggle, works for everyone including owner) ---
     use_mock = st.toggle("🟢 Test Mode (Mock Data)", value=True)
     if use_mock:
         st.caption("✅ Test Mode active — no API key needed")
         st.caption("Turn off Test Mode for real AI analysis.")
 
+    st.divider()
+    # --- Owner Mode (only relevant when Test Mode is OFF) ---
+    is_owner = st.checkbox(
+        "👑 Owner Mode",
+        value=False,
+        help="App owner only — auto-uses the stored Gemini key. Others: leave unchecked and paste your key below."
+    )
     st.divider()
 
     
