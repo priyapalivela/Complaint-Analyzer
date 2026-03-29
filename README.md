@@ -19,6 +19,7 @@ Built with **Streamlit**, **Google Gemini 2.5 Flash**, and **Supabase**.
 - Persistent data storage in Supabase (PostgreSQL)
 - Test Mode to save Gemini quota during development
 - Clean and user-friendly interface
+- **Test Mode** for safe and instant preview (no API usage)
 
 ---
 
@@ -30,6 +31,23 @@ Built with **Streamlit**, **Google Gemini 2.5 Flash**, and **Supabase**.
 | Google Gemini 2.5 Flash  | Multimodal AI (Audio + Images)  |
 | Supabase                 | Database + Authentication       |
 | Pandas + Plotly          | Data analysis & Visualization   |
+| Dev Container            |Consistent development environment|
+
+---
+
+## 🚀 Live Demo
+
+**Try it here:**  
+[https://complaint-analyzer-aqrr5re9ezm5cjjanmjgzr.streamlit.app/](https://complaint-analyzer-aqrr5re9ezm5cjjanmjgzr.streamlit.app/)
+
+### Demo Login (for Real AI Mode)
+
+- **Email**: `demo@complaint-analyzer.com`  
+- **Password**: `Demo1234!`
+
+> **Note**: 
+> - **Test Mode** is enabled by default — works instantly without any API key.
+> - For **Real AI Mode**, the app owner can use "👑 Owner Mode". Others can paste their own Gemini API key in the sidebar.
 
 ---
 
@@ -83,6 +101,8 @@ complaint-analyzer/
 ├── requirements.txt
 ├── README.md
 ├── .gitignore
+├── .devcontainer/
+│   └── devcontainer.json
 └── .streamlit/
     └── secrets.toml          # ← Not committed to GitHub
 ```
