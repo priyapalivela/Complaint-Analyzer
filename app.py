@@ -106,9 +106,9 @@ if "gemini_key_to_use" not in st.session_state:
 # ====================== AUTHENTICATION ======================
 def login_page():
     st.title("🔐 Complaint Analyzer Login")
-    st.markdown("### AI-Powered Voice & Image Complaint Analysis")
+    st.markdown("### AI-Powered Multimodal Complaint Analysis")
 
-    tab1, tab2 = st.tabs(["Login", "Sign Up"])
+    tab1, tab2, tab3 = st.tabs(["Login", "Sign Up", "Reset Password"])
 
     with tab1:
         email = st.text_input("Email", key="login_email")
@@ -120,17 +120,30 @@ def login_page():
         )
 
         if st.button("Login", type="primary"):
-            try:
-                conn.auth.sign_in_with_password({"email": email, "password": password})
-                st.session_state.user_email = email
-                st.session_state.user_name = (
-                    display_name.strip().title() if display_name.strip()
-                    else email.split("@")[0].replace(".", " ").title()
-                )
-                st.success(f"Welcome {st.session_state.user_name}!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Login failed: {e}")
+            if not email.strip():
+                st.error("Please enter your email.")
+            elif not password.strip():
+                st.error("Please enter your password.")
+            else:
+                try:
+                    conn.auth.sign_in_with_password({"email": email, "password": password})
+                    st.session_state.user_email = email
+                    st.session_state.user_name = (
+                        display_name.strip().title() if display_name.strip()
+                        else email.split("@")[0].replace(".", " ").title()
+                    )
+                    st.success(f"Welcome {st.session_state.user_name}!")
+                    st.rerun()
+                except Exception as e:
+                    error_msg = str(e).lower()
+                    if "invalid" in error_msg or "credentials" in error_msg:
+                        st.error("❌ Wrong email or password. Try again or reset your password.")
+                    elif "not confirmed" in error_msg:
+                        st.error("📧 Please verify your email first — check your inbox.")
+                    elif "user not found" in error_msg:
+                        st.error("❌ No account found with this email. Please sign up first.")
+                    else:
+                        st.error(f"Login failed: {e}")
 
     with tab2:
         full_name = st.text_input("Full Name", key="signup_name", placeholder="e.g. Bhanu Priya")
@@ -146,6 +159,19 @@ def login_page():
                     st.success(f"Account created for **{full_name.strip().title()}**! You can now login.")
                 except Exception as e:
                     st.error(f"Signup failed: {e}")
+
+    with tab3:
+        st.markdown("### Forgot Password?")
+        reset_email = st.text_input("Enter your registered email", key="reset_email")
+        if st.button("Send Reset Link", type="primary"):
+            if not reset_email.strip():
+                st.error("Please enter your email.")
+            else:
+                try:
+                    conn.auth.reset_password_email(reset_email)
+                    st.success("✅ Reset link sent! Check your inbox.")
+                except Exception as e:
+                    st.error(f"Reset failed: {e}")
 
 
 if st.session_state.user_email is None:
@@ -165,40 +191,45 @@ st.title(f"🔍 AI Complaint Analyzer – {user_display_name}")
 with st.sidebar:
     st.success(f"Logged in as: **{user_display_name}**")
     st.divider()
-
-    # --- Test Mode: works for EVERYONE including owner ---
+    # --- Test Mode (independent toggle, works for everyone including owner) ---
     use_mock = st.toggle("🟢 Test Mode (Mock Data)", value=True)
     if use_mock:
-        st.caption("No API key needed. Using sample data.")
+        st.caption("✅ Test Mode active — no API key needed")
+        st.caption("Turn off Test Mode for real AI analysis.")
 
     st.divider()
+    # --- Owner Mode (only relevant when Test Mode is OFF) ---
+    is_owner = st.checkbox(
+        "👑 Owner Mode",
+        value=False,
+        help="App owner only — auto-uses the stored Gemini key. Others: leave unchecked and paste your key below."
+    )
+    st.divider()
 
-    # --- Real Mode section: only appears when Test Mode is OFF ---
-    is_owner = False  # default
+    
     if not use_mock:
-        st.markdown("**⚡ Real AI Mode**")
-        is_owner = st.checkbox(
-            "👑 I'm the Owner (use stored key)",
-            value=False,
-            help="Only for the app owner — uses the secret Gemini key automatically."
-        )
+        # Real Mode is ON
         if is_owner:
-            st.success("✅ Using stored Gemini key")
-            st.session_state.gemini_key_to_use = None
+            # Owner: secret key is used automatically, no input needed
+            st.success("✅ **Owner Real Mode** — Using stored Gemini key")
+            st.session_state.gemini_key_to_use = None  # sentinel: use st.secrets
         else:
+            # Other users: must paste their own key
+            st.warning("⚠️ Real AI Mode — paste your own free Gemini API key below")
             user_key = st.text_input(
                 "Your Gemini API Key",
                 type="password",
                 placeholder="AIzaSy...",
-                help="Get free key → https://aistudio.google.com/app/apikey"
+                help="Get a free key → https://aistudio.google.com/app/apikey"
             )
             if user_key:
-                st.success("✅ Using your Gemini key")
+                st.success("✅ Using YOUR Gemini key")
                 st.session_state.gemini_key_to_use = user_key
             else:
-                st.warning("Paste your Gemini API key above to use Real Mode")
+                st.error("Please paste a Gemini API key to use Real Mode")
                 st.session_state.gemini_key_to_use = None
-        st.divider()
+
+    st.divider()
 
     if st.button("Logout"):
         conn.auth.sign_out()
