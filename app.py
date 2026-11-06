@@ -112,7 +112,7 @@ def login_page():
         st.title("🔐 Complaint Analyzer")
         st.caption("AI-Powered Multimodal Complaint Analysis")
 
-        if st.button("👀 Try the demo", type="primary", use_container_width=True):
+        if st.button(" Try the demo", type="primary", use_container_width=True):
             try:
                 demo_email = st.secrets["demo"]["email"]
                 conn.auth.sign_in_with_password(
