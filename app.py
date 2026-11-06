@@ -105,73 +105,81 @@ if "gemini_key_to_use" not in st.session_state:
 
 # ====================== AUTHENTICATION ======================
 def login_page():
-    st.title("🔐 Complaint Analyzer")
-    st.markdown("### AI-Powered Multimodal Complaint Analysis")
+    # Narrow centered column instead of full width
+    _, center, _ = st.columns([1, 1.2, 1])
 
-    tab1, tab2, tab3 = st.tabs(["Login", "Sign Up", "Reset Password"])
+    with center:
+        st.title("🔐 Complaint Analyzer")
+        st.caption("AI-Powered Multimodal Complaint Analysis")
 
-    with tab1:
-        email = st.text_input("Email", key="login_email")
-        password = st.text_input("Password", type="password", key="login_pass")
-        display_name = st.text_input(
-            "Your Name (optional)",
-            key="login_name",
-            placeholder="How should we call you?"
-        )
+        tab1, tab2, tab3 = st.tabs(["Login", "Sign Up", "Reset Password"])
 
-        if st.button("Login", type="primary"):
-            if not email.strip():
-                st.error("Please enter your email.")
-            elif not password.strip():
-                st.error("Please enter your password.")
-            else:
-                try:
-                    conn.auth.sign_in_with_password({"email": email, "password": password})
-                    st.session_state.user_email = email
-                    st.session_state.user_name = (
-                        display_name.strip().title() if display_name.strip()
-                        else email.split("@")[0].replace(".", " ").title()
-                    )
-                    st.success(f"Welcome {st.session_state.user_name}!")
-                    st.rerun()
-                except Exception as e:
-                    error_msg = str(e).lower()
-                    if "invalid" in error_msg or "credentials" in error_msg:
-                        st.error("❌ Wrong email or password. Try again or reset your password.")
-                    elif "not confirmed" in error_msg:
-                        st.error("📧 Please verify your email first — check your inbox.")
-                    elif "user not found" in error_msg:
-                        st.error("❌ No account found with this email. Please sign up first.")
-                    else:
-                        st.error(f"Login failed: {e}")
+        with tab1:
+            with st.form("login_form"):
+                email = st.text_input("Email", key="login_email")
+                password = st.text_input("Password", type="password", key="login_pass")
+                display_name = st.text_input(
+                    "Your Name (optional)", key="login_name",
+                    placeholder="How should we call you?"
+                )
+                submitted = st.form_submit_button("Login", type="primary")
 
-    with tab2:
-        full_name = st.text_input("Full Name", key="signup_name", placeholder="e.g. Bhanu Priya")
-        email = st.text_input("Email", key="signup_email")
-        password = st.text_input("Password", type="password", key="signup_pass")
+            if submitted:
+                if not email.strip():
+                    st.error("Please enter your email.")
+                elif not password.strip():
+                    st.error("Please enter your password.")
+                else:
+                    try:
+                        conn.auth.sign_in_with_password({"email": email, "password": password})
+                        st.session_state.user_email = email
+                        st.session_state.user_name = (
+                            display_name.strip().title() if display_name.strip()
+                            else email.split("@")[0].replace(".", " ").title()
+                        )
+                        st.rerun()
+                    except Exception as e:
+                        error_msg = str(e).lower()
+                        if "invalid" in error_msg or "credentials" in error_msg:
+                            st.error("❌ Wrong email or password. Try again or reset your password.")
+                        elif "not confirmed" in error_msg:
+                            st.error("📧 Please verify your email first — check your inbox.")
+                        elif "user not found" in error_msg:
+                            st.error("❌ No account found with this email. Please sign up first.")
+                        else:
+                            st.error(f"Login failed: {e}")
 
-        if st.button("Create Account", type="primary"):
-            if not full_name.strip():
-                st.error("Please enter your full name.")
-            else:
-                try:
-                    conn.auth.sign_up({"email": email, "password": password})
-                    st.success(f"Account created for **{full_name.strip().title()}**! You can now login.")
-                except Exception as e:
-                    st.error(f"Signup failed: {e}")
+        with tab2:
+            with st.form("signup_form"):
+                full_name = st.text_input("Full Name", key="signup_name", placeholder="e.g. Bhanu Priya")
+                email = st.text_input("Email", key="signup_email")
+                password = st.text_input("Password", type="password", key="signup_pass")
+                created = st.form_submit_button("Create Account", type="primary")
 
-    with tab3:
-        st.markdown("### Forgot Password?")
-        reset_email = st.text_input("Enter your registered email", key="reset_email")
-        if st.button("Send Reset Link", type="primary"):
-            if not reset_email.strip():
-                st.error("Please enter your email.")
-            else:
-                try:
-                    conn.auth.reset_password_email(reset_email)
-                    st.success("✅ Reset link sent! Check your inbox.")
-                except Exception as e:
-                    st.error(f"Reset failed: {e}")
+            if created:
+                if not full_name.strip():
+                    st.error("Please enter your full name.")
+                else:
+                    try:
+                        conn.auth.sign_up({"email": email, "password": password})
+                        st.success(f"Account created for **{full_name.strip().title()}**! You can now login.")
+                    except Exception as e:
+                        st.error(f"Signup failed: {e}")
+
+        with tab3:
+            with st.form("reset_form"):
+                reset_email = st.text_input("Enter your registered email", key="reset_email")
+                sent = st.form_submit_button("Send Reset Link", type="primary")
+
+            if sent:
+                if not reset_email.strip():
+                    st.error("Please enter your email.")
+                else:
+                    try:
+                        conn.auth.reset_password_email(reset_email)
+                        st.success("✅ Reset link sent! Check your inbox.")
+                    except Exception as e:
+                        st.error(f"Reset failed: {e}")
 
 
 if st.session_state.user_email is None:
