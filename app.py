@@ -213,43 +213,48 @@ st.title(f"🔍 AI Complaint Analyzer – {user_display_name}")
 with st.sidebar:
     st.success(f"Logged in as: **{user_display_name}**")
     st.divider()
-    # --- Test Mode (independent toggle, works for everyone including owner) ---
-    use_mock = st.toggle("🟢 Test Mode (Mock Data)", value=True)
-    if use_mock:
-        st.caption("✅ Test Mode active — no API key needed")
-        st.caption("Turn off Test Mode for real AI analysis.")
 
-    st.divider()
-    # --- Owner Mode (only relevant when Test Mode is OFF) ---
-    is_owner = st.checkbox(
-        "👑 Owner Mode",
-        value=False,
-        help="App owner only — auto-uses the stored Gemini key. Others: leave unchecked and paste your key below."
-    )
-    st.divider()
+    # --- Who is this user? ---
+    OWNER_EMAIL = (st.secrets.get("owner", {}).get("email", "") or "").strip().lower()
+    DEMO_EMAIL = (st.secrets.get("demo", {}).get("email", "") or "").strip().lower()
+    current_email = (st.session_state.user_email or "").strip().lower()
 
-    
-    if not use_mock:
-        # Real Mode is ON
-        if is_owner:
-            # Owner: secret key is used automatically, no input needed
-            st.success("✅ **Owner Real Mode** — Using stored Gemini key")
-            st.session_state.gemini_key_to_use = None  # sentinel: use st.secrets
-        else:
-            # Other users: must paste their own key
-            st.warning("⚠️ Real AI Mode — paste your own free Gemini API key below")
-            user_key = st.text_input(
-                "Your Gemini API Key",
-                type="password",
-                placeholder="AIzaSy...",
-                help="Get a free key → https://aistudio.google.com/app/apikey"
-            )
-            if user_key:
-                st.success("✅ Using YOUR Gemini key")
-                st.session_state.gemini_key_to_use = user_key
+    is_owner = bool(OWNER_EMAIL) and current_email == OWNER_EMAIL
+    is_demo = bool(DEMO_EMAIL) and current_email == DEMO_EMAIL
+
+    # --- Test Mode ---
+    if is_demo:
+        # Demo visitors can never trigger real API calls
+        use_mock = True
+        st.session_state.gemini_key_to_use = ""   # empty = no key, never falls back to owner key
+        st.info("🟢 Demo account: Test Mode only (mock data)")
+    else:
+        use_mock = st.toggle("🟢 Test Mode (Mock Data)", value=True)
+        if use_mock:
+            st.caption("✅ Test Mode active — no API key needed")
+            st.caption("Turn off Test Mode for real AI analysis.")
+
+        st.divider()
+
+        # --- Real Mode (Test Mode OFF) ---
+        if not use_mock:
+            if is_owner:
+                st.success("👑 **Owner account** — using stored Gemini key")
+                st.session_state.gemini_key_to_use = None   # None = use st.secrets key
             else:
-                st.error("Please paste a Gemini API key to use Real Mode")
-                st.session_state.gemini_key_to_use = None
+                st.warning("⚠️ Real AI Mode — paste your own free Gemini API key below")
+                user_key = st.text_input(
+                    "Your Gemini API Key",
+                    type="password",
+                    placeholder="AIzaSy...",
+                    help="Get a free key → https://aistudio.google.com/app/apikey"
+                )
+                if user_key:
+                    st.success("✅ Using YOUR Gemini key")
+                    st.session_state.gemini_key_to_use = user_key
+                else:
+                    st.error("Please paste a Gemini API key to use Real Mode")
+                    st.session_state.gemini_key_to_use = ""   # empty = no key, never the owner key
 
     st.divider()
 
@@ -257,7 +262,6 @@ with st.sidebar:
         conn.auth.sign_out()
         st.session_state.clear()
         st.rerun()
-
 # ====================== GEMINI ANALYSIS ======================
 def analyze_complaint(audio_file, damaged_file, correct_file, order_notes, use_mock=False):
     # --- TEST MODE: returns mock data for everyone ---
