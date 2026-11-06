@@ -112,6 +112,20 @@ def login_page():
         st.title("🔐 Complaint Analyzer")
         st.caption("AI-Powered Multimodal Complaint Analysis")
 
+        if st.button("👀 Try the demo", type="primary", use_container_width=True):
+            try:
+                demo_email = st.secrets["demo"]["email"]
+                conn.auth.sign_in_with_password(
+                    {"email": demo_email, "password": st.secrets["demo"]["password"]}
+                )
+                st.session_state.user_email = demo_email
+                st.session_state.user_name = "Demo User"
+                st.rerun()
+            except Exception as e:
+                st.error(f"Demo login failed: {e}")
+
+        st.caption("Or log in / sign up below")
+
         tab1, tab2, tab3 = st.tabs(["Login", "Sign Up", "Reset Password"])
 
         with tab1:
